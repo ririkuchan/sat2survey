@@ -1,6 +1,13 @@
 # sat2survey
 A satellite-informed disaster assessment planner for prioritizing inspection sites and planning UAS survey routes.
 
+## Favorite Quote
+
+> "We should take care not to make the intellect our god;
+> it has, of course, powerful muscles, but no personality."
+>
+> — Albert Einstein, *The Goal of Human Existence* (1943)
+
 **Satellite-Informed UAS Disaster Assessment Planner**
 
 Sat2Survey is a web application we're building for our CSE499 Senior Project at BYU–Idaho.
