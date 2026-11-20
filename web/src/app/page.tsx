@@ -9,6 +9,7 @@ import {
   type InspectionSite,
 } from "@/lib/scenario";
 import ScenarioMap from "@/components/ScenarioMap";
+import { rankInspectionSites } from "@/lib/prioritization";
 
 export default function Home() {
   const [flood, setFlood] = useState<{
@@ -23,6 +24,7 @@ export default function Home() {
   const [siteFile, setSiteFile] = useState("");
   const [error, setError] = useState("");
 
+  // Load and validate flood GeoJSON
   async function loadFlood(
     event: ChangeEvent<HTMLInputElement>
   ) {
@@ -48,6 +50,7 @@ export default function Home() {
     }
   }
 
+  // Load and validate inspection-site CSV
   async function loadSites(
     event: ChangeEvent<HTMLInputElement>
   ) {
@@ -70,6 +73,33 @@ export default function Home() {
     }
   }
 
+  // Update importance for an individual inspection site
+  function updateImportance(
+    siteId: string,
+    importance: number
+  ) {
+    if (
+      !Number.isInteger(importance) ||
+      importance < 1 ||
+      importance > 5
+    ) {
+      return;
+    }
+
+    setSites((currentSites) =>
+      currentSites.map((site) =>
+        site.id === siteId
+          ? { ...site, importance }
+          : site
+      )
+    );
+  }
+
+  // Recalculate priorities when the datasets or importance change
+  const rankedSites = floodData
+    ? rankInspectionSites(floodData, sites)
+    : [];
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
       <header className="border-b border-slate-800 px-8 py-6">
@@ -78,6 +108,7 @@ export default function Home() {
             <h1 className="text-2xl font-bold tracking-tight">
               Sat2Survey
             </h1>
+
             <p className="mt-1 text-sm text-slate-400">
               Satellite-Informed UAS Disaster Assessment Planner
             </p>
@@ -107,7 +138,9 @@ export default function Home() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
+          {/* Data Upload Section */}
           <section className="space-y-5">
+            {/* Flood GeoJSON Upload */}
             <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
               <h3 className="text-lg font-semibold">
                 01 / Disaster Data
@@ -132,6 +165,7 @@ export default function Home() {
               </p>
             </div>
 
+            {/* Inspection Site CSV Upload */}
             <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
               <h3 className="text-lg font-semibold">
                 02 / Inspection Sites
@@ -157,6 +191,7 @@ export default function Home() {
               </p>
             </div>
 
+            {/* Validation Error */}
             {error && (
               <div
                 role="alert"
@@ -167,7 +202,9 @@ export default function Home() {
             )}
           </section>
 
+          {/* Main Dashboard */}
           <section className="space-y-6">
+            {/* Summary Cards */}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
                 <p className="text-sm text-slate-400">
@@ -206,11 +243,90 @@ export default function Home() {
               />
             </div>
 
-            {/* Scenario Overview */}
+            {/* Inspection Site Priority Ranking */}
+            <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
+              <div className="flex items-center justify-between gap-4">
+                <h3 className="text-lg font-semibold">
+                  Inspection Site Priority Ranking
+                </h3>
+
+                <span className="text-xs text-slate-400">
+                  R2 / Prioritization
+                </span>
+              </div>
+
+              <p className="mt-2 text-sm text-slate-400">
+                Priority Score = Importance + Flood Bonus
+                (5 points for sites inside a flooded area)
+              </p>
+
+              {rankedSites.length === 0 ? (
+                <p className="mt-6 text-sm text-slate-400">
+                  Upload both the flood GeoJSON and inspection-site
+                  CSV to calculate site priorities.
+                </p>
+              ) : (
+                <div className="mt-5 overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="border-b border-slate-700 text-slate-400">
+                      <tr>
+                        <th className="py-3">Rank</th>
+                        <th>Site</th>
+                        <th>Flood</th>
+                        <th>Importance</th>
+                        <th>Score</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {rankedSites.map((site) => (
+                        <tr
+                          key={site.id}
+                          className="border-b border-slate-800"
+                        >
+                          <td className="py-3 font-semibold text-sky-400">
+                            #{site.rank}
+                          </td>
+
+                          <td>{site.name}</td>
+
+                          <td>
+                            <span
+                              className={
+                                site.inFloodArea
+                                  ? "text-orange-400"
+                                  : "text-slate-400"
+                              }
+                            >
+                              {site.inFloodArea
+                                ? "Inside"
+                                : "Outside"}
+                            </span>
+                          </td>
+
+                          <td>{site.importance}</td>
+
+                          <td className="font-bold text-sky-300">
+                            {site.priorityScore}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Scenario Overview with Editable Importance */}
             <div className="min-h-80 rounded-xl border border-slate-800 bg-slate-900 p-6">
               <h3 className="text-lg font-semibold">
                 Scenario Overview
               </h3>
+
+              <p className="mt-2 text-sm text-slate-400">
+                Adjust the importance of each inspection site.
+                Priority rankings update automatically.
+              </p>
 
               {sites.length === 0 ? (
                 <p className="mt-6 text-sm text-slate-400">
@@ -235,9 +351,33 @@ export default function Home() {
                           className="border-b border-slate-800"
                         >
                           <td className="py-3">{site.name}</td>
+
                           <td>{site.latitude}</td>
+
                           <td>{site.longitude}</td>
-                          <td>{site.importance}</td>
+
+                          <td>
+                            <select
+                              value={site.importance}
+                              onChange={(event) =>
+                                updateImportance(
+                                  site.id,
+                                  Number(event.target.value)
+                                )
+                              }
+                              aria-label={`Importance for ${site.name}`}
+                              className="rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-slate-100"
+                            >
+                              {[1, 2, 3, 4, 5].map((value) => (
+                                <option
+                                  key={value}
+                                  value={value}
+                                >
+                                  {value}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -250,6 +390,7 @@ export default function Home() {
 
         <footer className="mt-10 border-t border-slate-800 pt-5 text-xs text-slate-500">
           Sat2Survey / CSE499 Senior Project / BYU–Idaho
+
           <p className="mt-1">
             Research prototype — not for operational flight use.
           </p>
