@@ -1,0 +1,19 @@
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Mission {
+  id                  String   @id @default(cuid())
+  name                String
+  floodGeoJson        String
+  inspectionSitesJson String
+  flightSettingsJson  String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}

@@ -19,6 +19,9 @@ import {
 
 import ScenarioMap from "@/components/ScenarioMap";
 import FlightPlanner from "@/components/FlightPlanner";
+import MissionManager, {
+  type SavedMission,
+} from "@/components/MissionManager";
 
 export default function Home() {
   // Flood dataset information
@@ -127,6 +130,21 @@ export default function Home() {
           : site
       )
     );
+  }
+
+  // R4: Restore a mission saved in SQLite
+  function restoreMission(mission: SavedMission) {
+    setFloodData(mission.flood);
+
+    setFlood({
+      name: `Saved mission: ${mission.name}`,
+      count: mission.flood.features.length,
+    });
+
+    setSites(mission.sites);
+    setSiteFile("Restored from SQLite");
+    setFlightSettings(mission.flightSettings);
+    setError("");
   }
 
   // R2: Calculate priorities using flood exposure and importance
@@ -385,6 +403,14 @@ export default function Home() {
                 floodData !== null &&
                 sites.length > 0
               }
+            />
+
+            {/* R4: Mission Persistence */}
+            <MissionManager
+              flood={floodData}
+              sites={sites}
+              flightSettings={flightSettings}
+              onLoad={restoreMission}
             />
 
             {/* R2: Scenario Overview with Editable Importance */}
