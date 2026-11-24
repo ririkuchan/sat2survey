@@ -1,14 +1,18 @@
 
 "use client";
 
-import type {
-  Dispatch,
-  SetStateAction,
+import {
+  useState,
+  type Dispatch,
+  type SetStateAction,
 } from "react";
+
 import type {
   FlightSettings,
   RoutePlan,
 } from "@/lib/route";
+
+import { buildWaypointCsv } from "@/lib/waypoints";
 
 type Props = {
   settings: FlightSettings;
@@ -23,6 +27,8 @@ export default function FlightPlanner({
   plan,
   hasData,
 }: Props) {
+  const [exportError, setExportError] = useState("");
+
   function updateSetting(
     key: "speedKmH" | "maxFlightMinutes" | "inspectionMinutes",
     value: string
@@ -44,6 +50,45 @@ export default function FlightPlanner({
         [key]: Number(value),
       },
     }));
+  }
+
+  // E2: Download the selected flight route as CSV.
+  function downloadWaypoints() {
+    if (!plan || plan.selectedSites.length === 0) {
+      setExportError("No inspection sites selected for export.");
+      return;
+    }
+
+    setExportError("");
+
+    try {
+      const csv = buildWaypointCsv(plan, settings.base);
+
+      const blob = new Blob([csv], {
+        type: "text/csv;charset=utf-8",
+      });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = "sat2survey-waypoints.csv";
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      // Release the temporary URL after the download starts.
+      window.setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 1000);
+    } catch (error) {
+      setExportError(
+        error instanceof Error
+          ? error.message
+          : "Could not export waypoints."
+      );
+    }
   }
 
   return (
@@ -237,6 +282,48 @@ export default function FlightPlanner({
                 </p>
               </div>
             )}
+
+            {/* E2: Waypoint CSV Export */}
+            <div className="mt-6 border-t border-slate-700 pt-5">
+              <div className="flex items-center justify-between gap-4">
+                <h4 className="font-semibold">
+                  Waypoint CSV Export
+                </h4>
+
+                <span className="text-xs text-sky-400">
+                  E2 / Enhancement
+                </span>
+              </div>
+
+              <p className="mt-2 text-sm text-slate-400">
+                Export the selected route in visit order,
+                including departure and return to base.
+              </p>
+
+              <button
+                type="button"
+                onClick={downloadWaypoints}
+                disabled={plan.selectedSites.length === 0}
+                className="mt-4 rounded-md bg-sky-700 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Download Waypoints CSV
+              </button>
+
+              {plan.selectedSites.length === 0 && (
+                <p className="mt-2 text-xs text-slate-400">
+                  No route available for export.
+                </p>
+              )}
+
+              {exportError && (
+                <p
+                  role="alert"
+                  className="mt-3 text-sm text-red-400"
+                >
+                  {exportError}
+                </p>
+              )}
+            </div>
           </>
         )}
       </div>
@@ -244,7 +331,9 @@ export default function FlightPlanner({
       <p className="mt-5 text-xs leading-5 text-slate-500">
         Straight-line distance estimate only. This prototype
         does not account for weather, obstacles, airspace,
-        or battery reserves. Not for operational flight use.
+        or battery reserves. The exported CSV is not a
+        QGroundControl mission file. Not for operational
+        flight use.
       </p>
     </div>
   );
